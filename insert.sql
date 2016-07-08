@@ -1,0 +1,37 @@
+delete from UW_TIMESHEET_PROJECT_TASK_TABLE;
+delete from UW_TIMESHEET_TASK_TABLE;
+delete from UW_TIMESHEET_PROJECT_TABLE;
+delete from UW_TIMESHEET_USER_TABLE;
+
+insert into UW_TIMESHEET_USER_TABLE (UW_ID, UW_NAME) values (1, 'Saulo Araujo');
+
+insert into UW_TIMESHEET_PROJECT_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (1, 'Project 01', 'Project 01', 1);
+insert into UW_TIMESHEET_PROJECT_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (2, 'Project 02', 'Project 02', 1);
+insert into UW_TIMESHEET_PROJECT_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (3, 'Project 03', 'Project 03', 1);
+insert into UW_TIMESHEET_PROJECT_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (4, 'Project 04', 'Project 04', 1);
+insert into UW_TIMESHEET_PROJECT_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (5, 'Project 05', 'Project 05', 1);
+insert into UW_TIMESHEET_PROJECT_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (6, 'Project 06', 'Project 06', 1);
+insert into UW_TIMESHEET_PROJECT_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (7, 'Project 07', 'Project 07', 1);
+insert into UW_TIMESHEET_PROJECT_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (8, 'Project 08', 'Project 08', 1);
+insert into UW_TIMESHEET_PROJECT_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (9, 'Project 09', 'Project 09', 1);
+insert into UW_TIMESHEET_PROJECT_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (10, 'Project 10', 'Project 10', 1);
+
+insert into UW_TIMESHEET_TASK_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (1, 'Task 01', 'Task 01', 1);
+insert into UW_TIMESHEET_TASK_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (2, 'Task 02', 'Task 02', 1);
+insert into UW_TIMESHEET_TASK_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (3, 'Task 03', 'Task 03', 1);
+insert into UW_TIMESHEET_TASK_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (4, 'Task 04', 'Task 04', 1);
+insert into UW_TIMESHEET_TASK_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (5, 'Task 05', 'Task 05', 1);
+insert into UW_TIMESHEET_TASK_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (6, 'Task 06', 'Task 06', 1);
+insert into UW_TIMESHEET_TASK_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (7, 'Task 07', 'Task 07', 1);
+insert into UW_TIMESHEET_TASK_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (8, 'Task 08', 'Task 08', 1);
+insert into UW_TIMESHEET_TASK_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (9, 'Task 09', 'Task 09', 1);
+insert into UW_TIMESHEET_TASK_TABLE (UW_ID, UW_NAME, UW_DESCRIPTION, UW_USER_ID) values (10, 'Task 10', 'Task 10', 1);
+
+insert into UW_TIMESHEET_PROJECT_TASK_TABLE (UW_PROJECT_ID, UW_TASK_ID) values (1, 1);
+insert into UW_TIMESHEET_PROJECT_TASK_TABLE (UW_PROJECT_ID, UW_TASK_ID) values (1, 2);
+insert into UW_TIMESHEET_PROJECT_TASK_TABLE (UW_PROJECT_ID, UW_TASK_ID) values (1, 3);
+
+insert into UW_TIMESHEET_PROJECT_TASK_TABLE (UW_PROJECT_ID, UW_TASK_ID) values (2, 1);
+
+insert into UW_TIMESHEET_PROJECT_TASK_TABLE (UW_PROJECT_ID, UW_TASK_ID) values (3, 1);
+insert into UW_TIMESHEET_PROJECT_TASK_TABLE (UW_PROJECT_ID, UW_TASK_ID) values (3, 2);
