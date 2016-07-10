@@ -1,6 +1,8 @@
 database postgresql://timesheet:timesheet@localhost:5432/timesheet
 sql create.sql
-minHeap 1024
+minHeap 65536
 
+$/datetime
 $/list
+
 timesheet

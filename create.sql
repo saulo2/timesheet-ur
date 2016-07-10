@@ -34,7 +34,7 @@ CREATE TABLE uw_Timesheet_user_table(uw_id int8 NOT NULL, uw_name text NOT NULL,
     CREATE TABLE uw_Timesheet_entry_table(uw_project_id int8 NOT NULL, 
                                            uw_task_id int8 NOT NULL, 
                                            uw_date timestamp NOT NULL, 
-                                           uw_time int8 NOT NULL,
+                                           uw_time float8 NOT NULL,
      PRIMARY KEY (uw_dATE, uw_pROJECT_ID, uw_tASK_ID),
       CONSTRAINT uw_Timesheet_entry_table_PROJECT_ID
        FOREIGN KEY (uw_pROJECT_ID) REFERENCES uw_Timesheet_project_table (uw_iD),
