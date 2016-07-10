@@ -176,18 +176,21 @@ fun main () =
 	    </xml>
 
 and saveEntryCell projectId taskId date f =
-    count <- oneRowE1(SELECT COUNT( * )
-		      FROM entry_table AS E);
+    count <- oneRowE1(SELECT COUNT( * )			
+		      FROM entry_table AS E
+		      WHERE E.PROJECT_ID = {[projectId]}
+			AND E.TASK_ID = {[taskId]}
+			AND E.DATE = {[date]});
 
-    if count = 0 then
-	dml (INSERT INTO entry_table (PROJECT_ID, TASK_ID, DATE, TIME)
-	     VALUES ({[projectId]}, {[taskId]}, {[date]}, {[readError f.TIME]}));
-	main ()
-    else
-	dml (UPDATE entry_table
-	     SET
-	       TIME = {[readError f.TIME]}
-	     WHERE PROJECT_ID = {[projectId]}
-	       AND TASK_ID = {[taskId]}
-	       AND DATE = {[date]});
-	main ()
+    (if count = 0 then
+	 dml (INSERT INTO entry_table (PROJECT_ID, TASK_ID, DATE, TIME)
+	      VALUES ({[projectId]}, {[taskId]}, {[date]}, {[readError f.TIME]}))
+     else
+	 dml (UPDATE entry_table
+	      SET
+		TIME = {[readError f.TIME]}
+	      WHERE PROJECT_ID = {[projectId]}
+		AND TASK_ID = {[taskId]}
+		AND DATE = {[date]}));
+    
+    main ()
