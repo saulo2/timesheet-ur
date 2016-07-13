@@ -149,6 +149,7 @@ fun timeSheetPage start =
 	projectRows <- List.mapXM (fn projectRow =>
 				      case projectRow of
 					  ProjectRow (projectId, projectName, taskRows) =>
+					  isProjectRowVisible <- source False;
 					  List.mapXiM (fn index taskRow =>
 							  case taskRow of
 							      TaskRow (taskId, taskName, entryCells) =>
@@ -159,24 +160,32 @@ fun timeSheetPage start =
 											       return
 												   <xml>
 												     <td>
-<ctextbox source={time} onkeyup={fn e => if e.KeyCode = 13
-					 then time <- get time; rpc (saveEntryCell projectId taskId date time)
-					 else return ()}/>
+												       <ctextbox source={time} onkeyup={fn e => if e.KeyCode = 13
+																		then time <- get time; rpc (saveEntryCell projectId taskId date time)
+																		else return ()}/>
 												     </td>
 												   </xml>)
 										       entryCells;
 							      return
 								  <xml>
-								    <tr>
-								      {if index = 0
-								       then <xml><td rowspan={List.length taskRows}>{[projectName]}</td></xml>
-								       else <xml></xml>}
-								      <td>
-									{[taskName]}
-								      </td>
-								      {entryCells}
-								    </tr>
-								  </xml>)
+								    <dyn signal={isProjectRowVisible <- signal isProjectRowVisible;
+										 return
+										     (if isProjectRowVisible then
+											  <xml>
+                                                                                            <tr>
+											    {if index = 0
+											     then <xml><td rowspan={List.length taskRows}>{[projectName]}</td></xml>
+											     else <xml></xml>}
+											    <td>
+											      {[taskName]}
+											    </td>
+											    {entryCells}
+											    </tr>
+											  </xml>
+										     else
+											 <xml></xml>)
+                                                                    }/>
+                                                                  </xml>)
 						      taskRows)
 				  projectRows;
 	return
