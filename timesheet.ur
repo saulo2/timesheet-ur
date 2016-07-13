@@ -109,8 +109,38 @@ fun timeSheet userId count startTime =
 	return (TimeSheet (dates, projectRows))
     end
 
-fun main () =
-    start <- now;
+
+
+style container
+style row
+
+style col_sm_1
+style col_sm_2
+style col_sm_3
+style col_sm_4
+style col_sm_5
+style col_sm_6
+style col_sm_7
+style col_sm_8
+style col_sm_9
+style col_sm_10
+style col_sm_11
+style col_sm_12
+
+style glyphicon
+style glyphicon_minus_sign
+style glyphicon_plus_sign
+
+style css_table
+style table_bordered
+style table_condensed
+style table_responsive
+style table_stripped
+
+fun timeSheetPage start = 
+    start <- (case start of
+		  None => now
+		| Some start => return start);
 
     timeSheet <- timeSheet 1 7 start;
 
@@ -129,9 +159,9 @@ fun main () =
 											       return
 												   <xml>
 												     <td>
-												       <form>
-													 <ctextbox source={time}/>
-												       </form>
+<ctextbox source={time} onkeyup={fn e => if e.KeyCode = 13
+					 then time <- get time; rpc (saveEntryCell projectId taskId date time)
+					 else return ()}/>
 												     </td>
 												   </xml>)
 										       entryCells;
@@ -151,49 +181,66 @@ fun main () =
 				  projectRows;
 	return
 	    <xml>
+	      <head>
+		<link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"/>
+		<link rel="stylesheet" type="text/css" href="/Timesheet/timesheet.css"/>		
+	      </head>
 	      <body>
-		<table border=1>
-		  <thead>
-		    <tr>
-		      <th rowspan=2>Project</th>
-		      <th rowspan=2>Task</th>
-		      <th colspan={List.length dates}>Date</th>
-		    </tr>
-		    <tr>
-		      {List.mapX (fn date =>
-				     <xml>
-				       <th>
-					 {[timef "%D" date]}
-				       </th>
-				     </xml>)
-				 dates}
-		    </tr>
-		  </thead>
-		  <tbody>
-		    {projectRows}
-		  </tbody>
-		</table>
+		<div class="container">
+		  <div class="row">
+		    <div class="col-sm-12">
+		      <table class="css_table table_bordered table_condensed table_responsive table_stripped">
+			<thead>
+			  <tr>
+			    <th rowspan=2>Project</th>
+			    <th rowspan=2>Task</th>
+			    <th colspan={List.length dates}>
+			      <a class="glyphicon glyphicon_minus_sign"
+			      link={timeSheetPage (Some (addDays (0 - (List.length dates)) start))}></a>
+			      
+			      Date
+			      
+			      <a class="glyphicon glyphicon_plus_sign"
+			      link={timeSheetPage (Some (addDays (List.length dates) start))}></a>
+			    </th>
+			  </tr>
+			  <tr>
+			    {List.mapX (fn date =>
+					   <xml>
+					     <th>
+					       {[timef "%D" date]}
+					     </th>
+					   </xml>)
+				       dates}
+			  </tr>
+			</thead>
+			<tbody>
+			  {projectRows}
+			</tbody>
+		      </table>
+		    </div>
+		  </div>
+		</div>		
 	      </body>
 	    </xml>
 
-(*
-and saveEntryCell projectId taskId date f =
+and saveEntryCell projectId taskId date time =
     count <- oneRowE1(SELECT COUNT( * )			
 		      FROM entry_table AS E
 		      WHERE E.PROJECT_ID = {[projectId]}
 			AND E.TASK_ID = {[taskId]}
 			AND E.DATE = {[date]});
 
-    (if count = 0 then
-	 dml (INSERT INTO entry_table (PROJECT_ID, TASK_ID, DATE, TIME)
-	      VALUES ({[projectId]}, {[taskId]}, {[date]}, {[readError f.TIME]}))
-     else
-	 dml (UPDATE entry_table
-	      SET
-		TIME = {[readError f.TIME]}
-	      WHERE PROJECT_ID = {[projectId]}
-		AND TASK_ID = {[taskId]}
-		AND DATE = {[date]}));
-    
-    main ()
-*)
+    if count = 0 then
+	dml (INSERT INTO entry_table (PROJECT_ID, TASK_ID, DATE, TIME)
+	     VALUES ({[projectId]}, {[taskId]}, {[date]}, {[readError time]}))
+    else
+	dml (UPDATE entry_table
+	     SET
+	       TIME = {[readError time]}
+	     WHERE PROJECT_ID = {[projectId]}
+	       AND TASK_ID = {[taskId]}
+	       AND DATE = {[date]})
+
+fun main () =
+    timeSheetPage None

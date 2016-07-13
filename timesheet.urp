@@ -1,8 +1,10 @@
 database postgresql://timesheet:timesheet@localhost:5432/timesheet
 sql create.sql
-minHeap 65536
+allow url https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css
+rewrite style Timesheet/css_*
+rewrite style Timesheet/* [-]
+file /Timesheet/timesheet.css timesheet.css
 
 $/datetime
 $/list
-
 timesheet
