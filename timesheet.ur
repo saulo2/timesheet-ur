@@ -149,7 +149,7 @@ fun timeSheetPage start =
 	projectRows <- List.mapXM (fn projectRow =>
 				      case projectRow of
 					  ProjectRow (projectId, projectName, taskRows) =>
-					  isProjectRowVisible <- source False;
+					  isProjectRowVisibleSource <- source True;
 					  List.mapXiM (fn index taskRow =>
 							  case taskRow of
 							      TaskRow (taskId, taskName, entryCells) =>
@@ -160,34 +160,40 @@ fun timeSheetPage start =
 											       return
 												   <xml>
 												     <td>
-												       <ctextbox source={time} onkeyup={fn e => if e.KeyCode = 13
-																		then time <- get time; rpc (saveEntryCell projectId taskId date time)
-																		else return ()}/>
+												       <ctextbox source={time} onkeyup={fn e => if e.KeyCode = 13 then
+																		    time <- get time;
+																		    rpc (saveEntryCell projectId taskId date time)
+																		else
+																		    return ()}/>
 												     </td>
 												   </xml>)
 										       entryCells;
 							      return
 								  <xml>
-								    <dyn signal={isProjectRowVisible <- signal isProjectRowVisible;
-										 return
-										     (if isProjectRowVisible then
-											  <xml>
-                                                                                            <tr>
-											    {if index = 0
-											     then <xml><td rowspan={List.length taskRows}>{[projectName]}</td></xml>
-											     else <xml></xml>}
-											    <td>
-											      {[taskName]}
-											    </td>
-											    {entryCells}
-											    </tr>
-											  </xml>
-										     else
-											 <xml></xml>)
-                                                                    }/>
-                                                                  </xml>)
-						      taskRows)
-				  projectRows;
+								    <dyn signal={isProjectRowVisible <- signal isProjectRowVisibleSource;
+										 return (if isProjectRowVisible then
+											     <xml>
+											       <tr>
+											       {if index = 0 then
+<xml>
+  <td rowspan={List.length taskRows}>
+      {[projectName]}
+      <a class="glyphicon glyphicon_minus_sign" onclick={fn _ => set isProjectRowVisibleSource False}></a>
+  </td>
+</xml>
+												else
+												    <xml></xml>}
+											       <td>
+												 {[taskName]}
+											       </td>
+											       {entryCells}											       
+											       </tr>
+											     </xml>
+											 else
+											     <xml></xml>)}/>
+ 								  </xml>)
+ 						      taskRows)
+ 				  projectRows;
 	return
 	    <xml>
 	      <head>
@@ -199,7 +205,7 @@ fun timeSheetPage start =
 		  <div class="row">
 		    <div class="col-sm-12">
 		      <table class="css_table table_bordered table_condensed table_responsive table_stripped">
-			<thead>
+			<tbody>
 			  <tr>
 			    <th rowspan=2>Project</th>
 			    <th rowspan=2>Task</th>
@@ -222,8 +228,6 @@ fun timeSheetPage start =
 					   </xml>)
 				       dates}
 			  </tr>
-			</thead>
-			<tbody>
 			  {projectRows}
 			</tbody>
 		      </table>

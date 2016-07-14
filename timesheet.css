@@ -11,6 +11,7 @@ input[type=text] {
 }
 
 .table > thead > tr > th,
+.table > tbody > tr > th,
 .table > tbody > tr > td {
     text-align: center;
     
