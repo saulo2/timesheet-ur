@@ -173,28 +173,28 @@ fun timeSheetView userId count start =
     timeSheetSource <- source timeSheet;
 
     return
-	<xml>
-	  <head>
-	    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"/>
-	    <link rel="stylesheet" type="text/css" href="/Timesheet/timesheet.css"/>
-	  </head>
-	  <body>
-	    <div class="container">
-	      <div class="row">
-		<div class="col-sm-12">
-		  <dyn signal={timeSheet <- signal timeSheetSource;
-			       case timeSheet of
-				   (dates, projectRows) =>
-				   projectRows <- List.mapXM (fn projectRow =>
-								 case projectRow of
-								     (projectId, projectName, isProjectRowVisibleSource, taskRows) =>
-								     List.mapXiM (fn index taskRow =>
-										     case taskRow of
-											 (taskId, taskName, isTaskRowVisibleSource, entryCells) =>
-											 entryCells <- List.mapXM (fn entry =>
-														      case entry of
-															  (date, timeSource) =>
-															  return
+<xml>
+  <head>
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"/>
+    <link rel="stylesheet" type="text/css" href="/Timesheet/timesheet.css"/>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+	<div class="col-sm-12">
+	  <dyn signal={timeSheet <- signal timeSheetSource;
+		       case timeSheet of
+			   (dates, projectRows) =>
+			   projectRows <- List.mapXM (fn projectRow =>
+							 case projectRow of
+							     (projectId, projectName, isProjectRowVisibleSource, taskRows) =>
+							     List.mapXiM (fn index taskRow =>
+									     case taskRow of
+										 (taskId, taskName, isTaskRowVisibleSource, entryCells) =>
+										 entryCells <- List.mapXM (fn entry =>
+													      case entry of
+														  (date, timeSource) =>
+														  return
 <xml>
   <td>
     <ctextbox source={timeSource} onkeyup={fn e => if e.KeyCode = 13 then
@@ -236,83 +236,84 @@ fun timeSheetView userId count start =
 										 taskRows)
 							     projectRows;
 				   return
-				       <xml>
-					 <table class="css_table table_bordered table_condensed table_responsive table_stripped">
-					   <thead>
-					     <tr>
-					       <th colspan=2>
-						 <a class="glyphicon glyphicon_pushpin pull-right"></a>
-					       </th>
-					       <th colspan={List.length dates}>
-						 <a class="glyphicon glyphicon_chevron_left" onclick=
-						 {fn _ =>
-						     let val count = List.length dates in
-							 case dates of
-							     start :: _ => timeSheet <- rpc (timeSheetModel userId
-													    count
-													    (addDays (0 - count) start)); set timeSheetSource timeSheet
-							   | _ => return ()
-						     end}/>
-
-						 Date
-
-						 <a class="glyphicon glyphicon_chevron_right" onclick=
-						 {fn _ =>
-						     let val count = List.length dates in
-							 case dates of
-							     start :: _ => timeSheet <- rpc (timeSheetModel userId
-													    count
-													    (addDays count start)); set timeSheetSource timeSheet
-							   | _ => return ()
-						     end}/>
-
-						 <span class="pull_right">
-						   <a class="glyphicon glyphicon_minus_sign" onclick=
-						   {fn _ =>
-						       let val count = List.length dates in
-							   case dates of
-							       start :: _ :: _ => timeSheet <- rpc (timeSheetModel userId
-														   (count - 1)
-														   start); set timeSheetSource timeSheet
-							     | _ => return ()
-															   
-						       end}/>
-						   
-						   <a class="glyphicon glyphicon_plus_sign" onclick=
-						   {fn _ =>
-						       let val count = List.length dates in
-							   case dates of
-							       start :: _ => timeSheet <- rpc (timeSheetModel userId
-													      (count + 1)
-													      start); set timeSheetSource timeSheet
-							     | _ => return ()
-
-						       end}/>
-						 </span>
-                                               </th>
-                                             </tr>
-					     <tr>
-					       <th>Project</th>
-					       <th>Task</th>
-					       {List.mapX (fn date =>
-							      <xml>
-								<th>
-								  {[timef "%D" date]}
-								</th>
-							      </xml>)
-							  dates}
-					     </tr>
-					   </thead>					   
-					   <tbody>
-					     {projectRows}
-					   </tbody>
-					 </table>
-                                       </xml>}/>
-                </div>
-              </div>
-            </div>
-          </body>
-        </xml>
+<xml>
+  <table class="css_table table_bordered table_condensed table_responsive table_stripped">
+    <thead>
+      <tr>
+	<th colspan=2>
+	  <a class="glyphicon glyphicon_pushpin pull-right"></a>
+	</th>
+	<th colspan={List.length dates}>
+	  <a class="glyphicon glyphicon_chevron_left" onclick=
+	  {fn _ =>
+	      let val count = List.length dates in
+		  case dates of
+		      start :: _ => timeSheet <- rpc (timeSheetModel userId
+								     count
+								     (addDays (0 - count) start)); set timeSheetSource timeSheet
+		    | _ => return ()
+	      end}/>
+	    
+	    Date
+	    
+	    <a class="glyphicon glyphicon_chevron_right" onclick=
+	    {fn _ =>
+		let val count = List.length dates in
+		    case dates of
+			start :: _ => timeSheet <- rpc (timeSheetModel userId
+								       count
+								       (addDays count start)); set timeSheetSource timeSheet
+		      | _ => return ()
+		end}/>
+	      
+	      <span class="pull_right">
+		<a class="glyphicon glyphicon_minus_sign" onclick=
+		{fn _ =>
+		    let val count = List.length dates in
+			case dates of
+			    start :: _ :: _ => timeSheet <- rpc (timeSheetModel userId
+										(count - 1)
+										start); set timeSheetSource timeSheet
+			  | _ => return ()
+				 
+		    end}/>
+		  
+		  <a class="glyphicon glyphicon_plus_sign" onclick=
+		  {fn _ =>
+		      let val count = List.length dates in
+			  case dates of
+			      start :: _ => timeSheet <- rpc (timeSheetModel userId
+									     (count + 1)
+									     start); set timeSheetSource timeSheet
+			    | _ => return ()
+				   
+		      end}/>
+		  </span>
+                </th>
+              </tr>
+	      <tr>
+		<th>Project</th>
+		<th>Task</th>
+		{List.mapX (fn date =>
+			       <xml>
+				 <th>
+				   {[timef "%D" date]}
+				 </th>
+			       </xml>)
+			   dates}
+	      </tr>
+	    </thead>					   
+	    <tbody>
+	      {projectRows}
+	    </tbody>
+	  </table>
+        </xml>}/>
+	       
+        </div>
+      </div>
+    </div>
+  </body>
+</xml>
 
 and saveEntryCell projectId taskId date time =
     count <- oneRowE1(SELECT COUNT( * )			
