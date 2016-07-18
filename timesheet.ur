@@ -119,6 +119,12 @@ style col_sm_10
 style col_sm_11
 style col_sm_12
 
+style active
+      
+style btn
+style btn_primary
+style btn_sm
+
 style glyphicon
 style glyphicon_chevron_left
 style glyphicon_chevron_right
@@ -197,15 +203,15 @@ fun timeSheetView userId count start =
 														  return
 <xml>
   <td>
-    <ctextbox source={timeSource} onkeyup={fn e => if e.KeyCode = 13 then
-						       time <- get timeSource;
-						       rpc (saveEntryCell projectId taskId date time)
-						   else
-						       return ()}/>
+    <ctextbox source={timeSource} onkeyup={fn event => if event.KeyCode = 13 then
+							   time <- get timeSource;
+							   rpc (saveEntryCell projectId taskId date time)
+						       else
+							   return ()}/>
   </td>
 </xml>)
-														  entryCells;
-											 return
+													  entryCells;
+										 return
 <xml>
   <dyn signal={isProjectRowVisible <- signal isProjectRowVisibleSource;
 	       isTaskRowVisible <- signal isTaskRowVisibleSource;
@@ -233,15 +239,17 @@ fun timeSheetView userId count start =
 		       else
 			   <xml></xml>)}/>
 </xml>)
-										 taskRows)
-							     projectRows;
-				   return
+									 taskRows)
+						     projectRows;
+			   return
 <xml>
   <table class="css_table table_bordered table_condensed table_responsive table_stripped">
     <thead>
       <tr>
 	<th colspan=2>
-	  <a class="glyphicon glyphicon_pushpin pull-right"></a>
+	  <button class="active btn btn_primary btn_sm pull_right">
+	    <i class="glyphicon glyphicon_pushpin"></i>
+	  </button>
 	</th>
 	<th colspan={List.length dates}>
 	  <a class="glyphicon glyphicon_chevron_left" onclick=
@@ -267,16 +275,21 @@ fun timeSheetView userId count start =
 		end}/>
 	      
 	      <span class="pull_right">
-		<a class="glyphicon glyphicon_minus_sign" onclick=
-		{fn _ =>
-		    let val count = List.length dates in
-			case dates of
-			    start :: _ :: _ => timeSheet <- rpc (timeSheetModel userId
-										(count - 1)
-										start); set timeSheetSource timeSheet
-			  | _ => return ()
-				 
-		    end}/>
+		{let val count = List.length dates in
+		     if count > 1 then
+			 <xml>
+			   <a class="glyphicon glyphicon_minus_sign" onclick=
+			   {fn _ =>
+			       case dates of
+				   start :: _ :: _ => timeSheet <- rpc (timeSheetModel userId
+										       (count - 1)
+										       start); set timeSheetSource timeSheet
+				 | _ => return ()}/>			   
+			 </xml>
+		     else
+			 <xml>
+			 </xml>
+		 end}
 		  
 		  <a class="glyphicon glyphicon_plus_sign" onclick=
 		  {fn _ =>
