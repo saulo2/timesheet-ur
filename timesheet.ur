@@ -66,12 +66,10 @@ fun timeSheet userId count startTime =
 					 ORDER BY T.NAME DESC)
 					(fn r projectIdTaskRowPairs =>
 					    let val entryCells = List.mp (fn date =>
-									     case List.find (fn entry =>
-												if entry.PROJECT_ID = r.PROJECT_ID
-												then if entry.TASK_ID = r.ID
-												     then entry.DATE = date
-												     else False
-												else False)
+									     case List.find (fn entry =>												
+												entry.PROJECT_ID = r.PROJECT_ID &&
+												entry.TASK_ID = r.ID &&
+												entry.DATE = date)
 											    entries of
 										 None => (date, None)
 									       | Some entry => (date, Some entry.TIME))
@@ -167,7 +165,7 @@ fun timeSheetModel userId count start =
 				 projectRows;
 	return (dates, isPinningSource, projectRows)
 
-fun pushPinButton isVisibleSource isActiveSource (clickHandler): xml [Body = (), Dyn = (), MakeForm = ()] [] [] = <xml>
+fun pushPinButton isVisibleSource isActiveSource clickHandler= <xml>
   <dyn signal={isVisible <- signal isVisibleSource;
 	       return (if isVisible then
 			   <xml>
@@ -244,34 +242,28 @@ fun timeSheetView userId count start =
   <dyn signal={isPinning <- signal isPinningSource;
 	       isProjectRowVisible <- signal isProjectRowVisibleSource;
 	       isTaskRowVisible <- signal isTaskRowVisibleSource;
-	       return (let val isVisible = if isPinning
-					   then True
-					   else (if isProjectRowVisible
-						 then isTaskRowVisible
-						 else False) in
-			   if isVisible then
-			       <xml>
-				 <tr>
-				 {if index = 0 then
-				      <xml>
-					<td rowspan={List.length taskRows}>
-                                          {[projectName]}
-					  {pushPinButton isPinningSource isProjectRowVisibleSource (fn _ => isProjectRowVisible <- get isProjectRowVisibleSource; set isProjectRowVisibleSource (not isProjectRowVisible))}
-					</td>
-				      </xml>
-				  else
-				      <xml>
-				      </xml>}
-				   <td>
-				     {[taskName]}
-				     {pushPinButton isPinningSource isTaskRowVisibleSource (fn _ => isTaskRowVisible <- get isTaskRowVisibleSource; set isTaskRowVisibleSource (not isTaskRowVisible))}
-				   </td>
-				   {entryCells}
-				 </tr>
-			       </xml>
-			   else
-			       <xml></xml>
-		       end)}/>
+	       return (if isPinning && isProjectRowVisible && isTaskRowVisible then
+			   <xml>
+			     <tr>
+			     {if index = 0 then
+				  <xml>
+				    <td rowspan={List.length taskRows}>
+                                      {[projectName]}
+				      {pushPinButton isPinningSource isProjectRowVisibleSource (fn _ => isProjectRowVisible <- get isProjectRowVisibleSource; set isProjectRowVisibleSource (not isProjectRowVisible))}
+				    </td>
+				  </xml>
+			      else
+				  <xml>
+				  </xml>}
+			        <td>
+				  {[taskName]}
+				  {pushPinButton isPinningSource isTaskRowVisibleSource (fn _ => isTaskRowVisible <- get isTaskRowVisibleSource; set isTaskRowVisibleSource (not isTaskRowVisible))}
+				</td>
+				{entryCells}
+			     </tr>
+			   </xml>
+		       else
+			   <xml></xml>)}/>
 </xml>)
 									 taskRows)
 						     projectRows;
@@ -347,7 +339,7 @@ fun timeSheetView userId count start =
 			       </xml>)
 			   dates}
 	      </tr>
-	    </thead>					   
+	    </thead>
 	    <tbody>
 	      {projectRows}
 	    </tbody>
