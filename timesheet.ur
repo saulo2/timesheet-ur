@@ -122,6 +122,7 @@ style col_sm_12
 style active
       
 style btn
+style btn_default      
 style btn_primary
 style btn_sm
 
@@ -145,6 +146,7 @@ fun timeSheetModel userId count start =
 
     case timeSheet of
 	(dates, projectRows) =>
+	isPinningSource <- source False;	
 	projectRows <- List.mapM (fn projectRow =>
 				     case projectRow of
 					 (projectId, projectName, taskRows) =>
@@ -157,13 +159,28 @@ fun timeSheetModel userId count start =
 												      timeSource <- source (show time);
 												      return (date, timeSource))
 											      entryCells;
-								      isTaskRowVisible <- source True;
-								      return (taskId, taskName, isTaskRowVisible, entryCells))
+								      isTaskRowVisibleSource <- source True;
+								      return (taskId, taskName, isTaskRowVisibleSource, entryCells))
 							      taskRows;
-					 isProjectRowVisible <- source True;
-					 return (projectId, projectName, isProjectRowVisible, taskRows))
+					 isProjectRowVisibleSource <- source True;
+					 return (projectId, projectName, isProjectRowVisibleSource, taskRows))
 				 projectRows;
-	return (dates, projectRows)
+	return (dates, isPinningSource, projectRows)
+
+fun pushPinButton isVisibleSource isActiveSource (clickHandler): xml [Body = (), Dyn = (), MakeForm = ()] [] [] = <xml>
+  <dyn signal={isVisible <- signal isVisibleSource;
+	       return (if isVisible then
+			   <xml>
+			     <button dynClass={isActive <- signal isActiveSource;
+					       return (classes (CLASS "btn btn_sm pull_right")
+							       (if isActive then btn_primary else btn_default))}
+						  onclick={fn event => clickHandler event}>
+                               <i class="glyphicon glyphicon_pushpin"></i>
+			     </button>		     
+			   </xml>
+		       else
+			   <xml></xml>)}/>
+</xml>
 
 fun timeSheetView userId count start =
     count <- return (case count of
@@ -178,6 +195,8 @@ fun timeSheetView userId count start =
 
     timeSheetSource <- source timeSheet;
 
+    trueSource <- source True;
+
     return
 <xml>
   <head>
@@ -190,10 +209,19 @@ fun timeSheetView userId count start =
 	<div class="col-sm-12">
 	  <dyn signal={timeSheet <- signal timeSheetSource;
 		       case timeSheet of
-			   (dates, projectRows) =>
+			   (dates, isPinningSource, projectRows) =>
 			   projectRows <- List.mapXM (fn projectRow =>
 							 case projectRow of
 							     (projectId, projectName, isProjectRowVisibleSource, taskRows) =>
+							     taskRows <- List.filterM (fn taskRow =>
+											  case taskRow of
+											      (taskId, taskName, isTaskRowVisibleSource, entryCells) =>
+											      isPinning <- signal isPinningSource;
+											      isTaskRowVisible <- signal isTaskRowVisibleSource;
+											      return (if isPinning
+												      then True
+												      else isTaskRowVisible))
+										      taskRows;
 							     List.mapXiM (fn index taskRow =>
 									     case taskRow of
 										 (taskId, taskName, isTaskRowVisibleSource, entryCells) =>
@@ -213,16 +241,22 @@ fun timeSheetView userId count start =
 													  entryCells;
 										 return
 <xml>
-  <dyn signal={isProjectRowVisible <- signal isProjectRowVisibleSource;
+  <dyn signal={isPinning <- signal isPinningSource;
+	       isProjectRowVisible <- signal isProjectRowVisibleSource;
 	       isTaskRowVisible <- signal isTaskRowVisibleSource;
-	       return (if isProjectRowVisible then
-			   if isTaskRowVisible then
+	       return (let val isVisible = if isPinning
+					   then True
+					   else (if isProjectRowVisible
+						 then isTaskRowVisible
+						 else False) in
+			   if isVisible then
 			       <xml>
 				 <tr>
 				 {if index = 0 then
 				      <xml>
 					<td rowspan={List.length taskRows}>
                                           {[projectName]}
+					  {pushPinButton isPinningSource isProjectRowVisibleSource (fn _ => isProjectRowVisible <- get isProjectRowVisibleSource; set isProjectRowVisibleSource (not isProjectRowVisible))}
 					</td>
 				      </xml>
 				  else
@@ -230,14 +264,14 @@ fun timeSheetView userId count start =
 				      </xml>}
 				   <td>
 				     {[taskName]}
+				     {pushPinButton isPinningSource isTaskRowVisibleSource (fn _ => isTaskRowVisible <- get isTaskRowVisibleSource; set isTaskRowVisibleSource (not isTaskRowVisible))}
 				   </td>
 				   {entryCells}
 				 </tr>
 			       </xml>
 			   else
 			       <xml></xml>
-		       else
-			   <xml></xml>)}/>
+		       end)}/>
 </xml>)
 									 taskRows)
 						     projectRows;
@@ -247,9 +281,7 @@ fun timeSheetView userId count start =
     <thead>
       <tr>
 	<th colspan=2>
-	  <button class="active btn btn_primary btn_sm pull_right">
-	    <i class="glyphicon glyphicon_pushpin"></i>
-	  </button>
+	  {pushPinButton trueSource isPinningSource (fn _ => isPinning <- get isPinningSource; set isPinningSource (not isPinning))}
 	</th>
 	<th colspan={List.length dates}>
 	  <a class="glyphicon glyphicon_chevron_left" onclick=
