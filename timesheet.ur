@@ -146,7 +146,7 @@ fun timeSheetModel userId count start =
 
     case timeSheet of
 	(dates, projectRows) =>
-	isPinningSource <- source False;	
+	isPinningSource <- source False;
 	projectRows <- List.mapM (fn projectRow =>
 				     case projectRow of
 					 (projectId, projectName, taskRows) =>
@@ -167,20 +167,21 @@ fun timeSheetModel userId count start =
 				 projectRows;
 	return (dates, isPinningSource, projectRows)
 
-fun pushPinButton isVisibleSource isActiveSource clickHandler= <xml>
-  <dyn signal={isVisible <- signal isVisibleSource;
-	       return (if isVisible then
-			   <xml>
-			     <button dynClass={isActive <- signal isActiveSource;
-					       return (classes (CLASS "btn btn_sm pull_right")
-							       (if isActive then btn_primary else btn_default))}
-						  onclick={fn event => clickHandler event}>
-                               <i class="glyphicon glyphicon_pushpin"></i>
-			     </button>		     
-			   </xml>
-		       else
-			   <xml></xml>)}/>
-</xml>
+fun pushPinButton isVisibleSource isActiveSource clickHandler =
+    <xml>
+      <dyn signal={isVisible <- signal isVisibleSource;
+		   return (if isVisible then
+			       <xml>
+				 <button dynClass={isActive <- signal isActiveSource;
+						   return (classes (CLASS "btn btn_sm pull_right")
+								   (if isActive then btn_primary else btn_default))}
+						      onclick={fn event => clickHandler event}>
+                                   <i class="glyphicon glyphicon_pushpin"></i>
+				 </button>		     
+			       </xml>
+			   else
+			       <xml></xml>)}/>
+    </xml>
 
 fun timeSheetView userId count start =
     count <- return (case count of
