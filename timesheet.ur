@@ -50,7 +50,9 @@ fun timeSheet userId count startTime =
 			    INNER JOIN project_task_table AS PT ON PT.PROJECT_ID = P.ID
 			    INNER JOIN task_table AS T ON T.ID = PT.TASK_ID
 			    INNER JOIN entry_table AS E ON E.PROJECT_ID = PT.PROJECT_ID AND E.TASK_ID = PT.TASK_ID
-			  WHERE P.USER_ID = {[userId]})
+			  WHERE P.USER_ID = {[userId]}
+			    AND {[startTime]} <= E.DATE
+			    AND E.DATE <= {[endTime]})
 			 (fn entry entries =>
 			     return (entry :: entries))
 			 [];
@@ -216,9 +218,7 @@ fun timeSheetView userId count start =
 											      (taskId, taskName, isTaskRowVisibleSource, entryCells) =>
 											      isPinning <- signal isPinningSource;
 											      isTaskRowVisible <- signal isTaskRowVisibleSource;
-											      return (if isPinning
-												      then True
-												      else isTaskRowVisible))
+											      return (isPinning || isTaskRowVisible))
 										      taskRows;
 							     List.mapXiM (fn index taskRow =>
 									     case taskRow of
@@ -241,8 +241,7 @@ fun timeSheetView userId count start =
 <xml>
   <dyn signal={isPinning <- signal isPinningSource;
 	       isProjectRowVisible <- signal isProjectRowVisibleSource;
-	       isTaskRowVisible <- signal isTaskRowVisibleSource;
-	       return (if isPinning && isProjectRowVisible && isTaskRowVisible then
+	       return (if isPinning || isProjectRowVisible then
 			   <xml>
 			     <tr>
 			     {if index = 0 then
@@ -340,7 +339,7 @@ fun timeSheetView userId count start =
 			   dates}
 	      </tr>
 	    </thead>
-	    <tbody>
+	    <tbody>	      
 	      {projectRows}
 	    </tbody>
 	  </table>
