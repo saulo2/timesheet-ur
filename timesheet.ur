@@ -205,18 +205,8 @@ fun pushPinButton isVisibleSource isActiveSource clickHandler =
 			       <xml></xml>)}/>
     </xml>
 
-fun timeSheetView userId count start =
-    count <- return (case count of
-			 None => 7
-		       | Some count => count);
-
-    start <- (case start of
-		  None => now
-		| Some start => return start);
-
-    timeSheet <- timeSheetModel userId count start;
-
-    timeSheetSource <- source timeSheet;
+fun timeSheetView userId count start =    
+    timeSheetSource <- source None;
 
     trueSource <- source True;
 
@@ -226,13 +216,21 @@ fun timeSheetView userId count start =
     <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"/>
     <link rel="stylesheet" type="text/css" href="/Timesheet/timesheet.css"/>
   </head>
-  <body>
+  <body onload={count <- return (case count of
+				     None => 7
+				   | Some count => count);
+		start <- (case start of
+			      None => now
+			    | Some start => return start);		
+		timeSheet <- rpc (timeSheetModel userId count start);
+		set timeSheetSource (Some timeSheet)}>
     <div class="container">
       <div class="row">
 	<div class="col-sm-12">
 	  <dyn signal={timeSheet <- signal timeSheetSource;
 		       case timeSheet of
-			   (dates, isPinningSource, projectRows) =>
+			   None => return <xml></xml>
+			 | Some (dates, isPinningSource, projectRows) =>
 			   projectRows <- List.mapXM (fn projectRow =>
 							 case projectRow of
 							     (projectId, projectName, isProjectRowVisibleSource, taskRows) =>
@@ -318,7 +316,7 @@ fun timeSheetView userId count start =
 		  case dates of
 		      start :: _ => timeSheet <- rpc (timeSheetModel userId
 								     count
-								     (addDays (0 - count) start)); set timeSheetSource timeSheet
+								     (addDays (0 - count) start)); set timeSheetSource (Some timeSheet)
 		    | _ => return ()
 	      end}/>
 	    
@@ -330,7 +328,7 @@ fun timeSheetView userId count start =
 		    case dates of
 			start :: _ => timeSheet <- rpc (timeSheetModel userId
 								       count
-								       (addDays count start)); set timeSheetSource timeSheet
+								       (addDays count start)); set timeSheetSource (Some timeSheet)
 		      | _ => return ()
 		end}/>
 	      
@@ -343,7 +341,7 @@ fun timeSheetView userId count start =
 			       case dates of
 				   start :: _ :: _ => timeSheet <- rpc (timeSheetModel userId
 										       (count - 1)
-										       start); set timeSheetSource timeSheet
+										       start); set timeSheetSource (Some timeSheet)
 				 | _ => return ()}/>			   
 			 </xml>
 		     else
@@ -357,7 +355,7 @@ fun timeSheetView userId count start =
 			  case dates of
 			      start :: _ => timeSheet <- rpc (timeSheetModel userId
 									     (count + 1)
-									     start); set timeSheetSource timeSheet
+									     start); set timeSheetSource (Some timeSheet)
 			    | _ => return ()
 				   
 		      end}/>
