@@ -1,13 +1,13 @@
 (* Service *)
 table user_table: {ID: int, NAME: string} PRIMARY KEY ID
 
-table project_table: {ID: int, NAME: string, DESCRIPTION: string, USER_ID: int} PRIMARY KEY ID,
+table project_table: {ID: int, NAME: string, DESCRIPTION: string, VISIBLE: bool, USER_ID: int} PRIMARY KEY ID,
       CONSTRAINT USER_ID FOREIGN KEY USER_ID REFERENCES user_table(ID)
 
 table task_table: {ID: int, NAME: string, DESCRIPTION: string, USER_ID: int} PRIMARY KEY ID,
       CONSTRAINT USER_ID FOREIGN KEY USER_ID REFERENCES user_table(ID)
 
-table project_task_table: {PROJECT_ID: int, TASK_ID: int} PRIMARY KEY (PROJECT_ID, TASK_ID),
+table project_task_table: {PROJECT_ID: int, TASK_ID: int, VISIBLE: bool} PRIMARY KEY (PROJECT_ID, TASK_ID),
       CONSTRAINT PROJECT_ID FOREIGN KEY PROJECT_ID REFERENCES project_table (ID),
       CONSTRAINT TASK_ID FOREIGN KEY TASK_ID REFERENCES task_table (ID)
 
@@ -50,7 +50,8 @@ fun timeSheet userId count startTime =
 	projectIdTaskRowsPairs <- query (SELECT
 					   P.ID AS PROJECT_ID,
 					   T.ID AS ID,
-					   T.NAME AS NAME
+					   T.NAME AS NAME,
+					   PT.VISIBLE AS VISIBLE
 					 FROM project_table AS P
 					   INNER JOIN project_task_table AS PT ON PT.PROJECT_ID = P.ID
 					   INNER JOIN task_table AS T ON T.ID = PT.TASK_ID
@@ -66,7 +67,7 @@ fun timeSheet userId count startTime =
 										 None => (date, None)
 									       | Some entry => (date, Some entry.TIME))
 									 dates
-						val taskRow = (r.ID, r.NAME, entryCells)
+						val taskRow = (r.ID, r.NAME, r.VISIBLE, entryCells)
 						val projectIdTaskRowPair = (r.PROJECT_ID, taskRow)
 					    in
 						return (projectIdTaskRowPair :: projectIdTaskRowPairs)
@@ -75,14 +76,15 @@ fun timeSheet userId count startTime =
 
 	projectRows <- query (SELECT
 				P.ID AS ID,
-				P.NAME AS NAME
+				P.NAME AS NAME,
+				P.VISIBLE AS VISIBLE
 			      FROM project_table AS P
 			      WHERE P.USER_ID = {[userId]}
 			      ORDER BY P.NAME DESC)
 			     (fn r projectRows =>
 				 let val projectIdTaskRowsPairs = List.filter (fn (projectId, _) => projectId = r.ID) projectIdTaskRowsPairs
 				     val taskRows = List.mp (fn (_, taskRow) => taskRow) projectIdTaskRowsPairs
-				     val projectRow = (r.ID, r.NAME, taskRows)
+				     val projectRow = (r.ID, r.NAME, r.VISIBLE, taskRows)
 				 in
 				     return (projectRow :: projectRows)
 				 end)
@@ -103,13 +105,21 @@ fun saveEntryCell projectId taskId date time =
 	     VALUES ({[projectId]}, {[taskId]}, {[date]}, {[readError time]}))
     else
 	dml (UPDATE entry_table
-	     SET
-	       TIME = {[readError time]}
+	     SET TIME = {[readError time]}
 	     WHERE PROJECT_ID = {[projectId]}
 	       AND TASK_ID = {[taskId]}
 	       AND DATE = {[date]})    
 
+fun saveProjectVisibility id visible =
+    dml (UPDATE project_table
+	 SET VISIBLE = {[visible]}
+	 WHERE ID = {[id]})
 
+fun saveTaskVisibility projectId taskId visible =
+    dml (UPDATE project_task_table
+	 SET VISIBLE = {[visible]}
+	 WHERE PROJECT_ID = {[projectId]}
+	   AND TASK_ID = {[taskId]})
 
 (* Model *)
 fun timeSheetModel userId count start =
@@ -120,20 +130,20 @@ fun timeSheetModel userId count start =
 	isPinningSource <- source False;
 	projectRows <- List.mapM (fn projectRow =>
 				     case projectRow of
-					 (projectId, projectName, taskRows) =>
+					 (projectId, projectName, isProjectRowVisible, taskRows) =>
 					 taskRows <- List.mapM (fn taskRow =>
 								  case taskRow of
-								      (taskId, taskName, entryCells) =>
+								      (taskId, taskName, isTaskRowVisible, entryCells) =>
 								      entryCells <- List.mapM (fn entryCell =>
 											          case entryCell of
 												      (date, time) =>
 												      timeSource <- source (show time);
 												      return (date, timeSource))
 											      entryCells;
-								      isTaskRowVisibleSource <- source True;
+								      isTaskRowVisibleSource <- source isTaskRowVisible;
 								      return (taskId, taskName, isTaskRowVisibleSource, entryCells))
 							      taskRows;
-					 isProjectRowVisibleSource <- source True;
+					 isProjectRowVisibleSource <- source isProjectRowVisible;
 					 return (projectId, projectName, isProjectRowVisibleSource, taskRows))
 				 projectRows;
 	return (dates, isPinningSource, projectRows)
@@ -261,7 +271,14 @@ fun timeSheetView userId count start =
 				  <xml>
 				    <td rowspan={List.length taskRows}>
                                       {[projectName]}
-				      {pushPinButton isPinningSource isProjectRowVisibleSource (fn _ => isProjectRowVisible <- get isProjectRowVisibleSource; set isProjectRowVisibleSource (not isProjectRowVisible))}
+				      {pushPinButton isPinningSource
+						     isProjectRowVisibleSource
+						     (fn _ =>
+							 isProjectRowVisible <- get isProjectRowVisibleSource;
+							 let val isProjectRowVisible = not isProjectRowVisible in
+							     rpc (saveProjectVisibility projectId isProjectRowVisible);
+							     set isProjectRowVisibleSource isProjectRowVisible
+							 end)}
 				    </td>
 				  </xml>
 			      else
@@ -269,7 +286,14 @@ fun timeSheetView userId count start =
 				  </xml>}
 			        <td>
 				  {[taskName]}
-				  {pushPinButton isPinningSource isTaskRowVisibleSource (fn _ => isTaskRowVisible <- get isTaskRowVisibleSource; set isTaskRowVisibleSource (not isTaskRowVisible))}
+				  {pushPinButton isPinningSource
+						 isTaskRowVisibleSource
+						 (fn _ =>
+						     isTaskRowVisible <- get isTaskRowVisibleSource;
+						     let val isTaskRowVisible = not isTaskRowVisible in
+							 rpc (saveTaskVisibility projectId taskId isTaskRowVisible);
+							 set isTaskRowVisibleSource isTaskRowVisible
+						     end)}
 				</td>
 				{entryCells}
 			     </tr>
