@@ -1,3 +1,4 @@
+(* Service *)
 table user_table: {ID: int, NAME: string} PRIMARY KEY ID
 
 table project_table: {ID: int, NAME: string, DESCRIPTION: string, USER_ID: int} PRIMARY KEY ID,
@@ -14,27 +15,17 @@ table entry_table: {PROJECT_ID: int, TASK_ID: int, DATE: time, TIME: float} PRIM
       CONSTRAINT PROJECT_ID FOREIGN KEY PROJECT_ID REFERENCES project_table (ID),
       CONSTRAINT TASK_ID FOREIGN KEY TASK_ID REFERENCES task_table (ID)
 
-fun intRange i j =
-    if i = j
-    then []
-    else i :: (intRange (i + 1) j)
+fun intRange i j = if i = j
+		   then []
+		   else i :: (intRange (i + 1) j)
 
-fun addDays days time =
-    Datetime.toTime (Datetime.addDays days (Datetime.fromTime time))
+fun addDays days time = Datetime.toTime (Datetime.addDays days (Datetime.fromTime time))
 
-fun timeRange count start = 
-    List.mp (fn days => addDays days start) (intRange 0 count)
+fun timeRange count start = List.mp (fn days => addDays days start) (intRange 0 count)
 
-fun midnight time =
-    let val t = Datetime.fromTime time in
-	Datetime.toTime {Year = t.Year,
-			 Month = t.Month,
-			 Day = t.Day,
-			 Hour = 0,
-			 Minute = 0,
-			 Second = 0
-			}
-    end
+fun midnight time = let val t = Datetime.fromTime time in
+			Datetime.toTime {Year = t.Year, Month = t.Month, Day = t.Day, Hour = 0, Minute = 0, Second = 0}
+		    end
 
 fun timeSheet userId count startTime =
     let val startTime = midnight startTime
@@ -53,8 +44,7 @@ fun timeSheet userId count startTime =
 			  WHERE P.USER_ID = {[userId]}
 			    AND {[startTime]} <= E.DATE
 			    AND E.DATE <= {[endTime]})
-			 (fn entry entries =>
-			     return (entry :: entries))
+			 (fn entry entries => return (entry :: entries))
 			 [];
 
 	projectIdTaskRowsPairs <- query (SELECT
@@ -101,8 +91,56 @@ fun timeSheet userId count startTime =
 	return (dates, projectRows)
     end
 
+fun saveEntryCell projectId taskId date time =
+    count <- oneRowE1(SELECT COUNT( * )			
+		      FROM entry_table AS E
+		      WHERE E.PROJECT_ID = {[projectId]}
+			AND E.TASK_ID = {[taskId]}
+			AND E.DATE = {[date]});
+
+    if count = 0 then
+	dml (INSERT INTO entry_table (PROJECT_ID, TASK_ID, DATE, TIME)
+	     VALUES ({[projectId]}, {[taskId]}, {[date]}, {[readError time]}))
+    else
+	dml (UPDATE entry_table
+	     SET
+	       TIME = {[readError time]}
+	     WHERE PROJECT_ID = {[projectId]}
+	       AND TASK_ID = {[taskId]}
+	       AND DATE = {[date]})    
 
 
+
+(* Model *)
+fun timeSheetModel userId count start =
+    timeSheet <- timeSheet userId count start;
+
+    case timeSheet of
+	(dates, projectRows) =>
+	isPinningSource <- source False;
+	projectRows <- List.mapM (fn projectRow =>
+				     case projectRow of
+					 (projectId, projectName, taskRows) =>
+					 taskRows <- List.mapM (fn taskRow =>
+								  case taskRow of
+								      (taskId, taskName, entryCells) =>
+								      entryCells <- List.mapM (fn entryCell =>
+											          case entryCell of
+												      (date, time) =>
+												      timeSource <- source (show time);
+												      return (date, timeSource))
+											      entryCells;
+								      isTaskRowVisibleSource <- source True;
+								      return (taskId, taskName, isTaskRowVisibleSource, entryCells))
+							      taskRows;
+					 isProjectRowVisibleSource <- source True;
+					 return (projectId, projectName, isProjectRowVisibleSource, taskRows))
+				 projectRows;
+	return (dates, isPinningSource, projectRows)
+
+
+
+(* View *)
 style container
 style row
 
@@ -140,32 +178,6 @@ style table_bordered
 style table_condensed
 style table_responsive
 style table_stripped
-
-fun timeSheetModel userId count start =
-    timeSheet <- timeSheet userId count start;
-
-    case timeSheet of
-	(dates, projectRows) =>
-	isPinningSource <- source False;
-	projectRows <- List.mapM (fn projectRow =>
-				     case projectRow of
-					 (projectId, projectName, taskRows) =>
-					 taskRows <- List.mapM (fn taskRow =>
-								  case taskRow of
-								      (taskId, taskName, entryCells) =>
-								      entryCells <- List.mapM (fn entryCell =>
-											          case entryCell of
-												      (date, time) =>
-												      timeSource <- source (show time);
-												      return (date, timeSource))
-											      entryCells;
-								      isTaskRowVisibleSource <- source True;
-								      return (taskId, taskName, isTaskRowVisibleSource, entryCells))
-							      taskRows;
-					 isProjectRowVisibleSource <- source True;
-					 return (projectId, projectName, isProjectRowVisibleSource, taskRows))
-				 projectRows;
-	return (dates, isPinningSource, projectRows)
 
 fun pushPinButton isVisibleSource isActiveSource clickHandler =
     <xml>
@@ -351,24 +363,6 @@ fun timeSheetView userId count start =
     </div>
   </body>
 </xml>
-
-and saveEntryCell projectId taskId date time =
-    count <- oneRowE1(SELECT COUNT( * )			
-		      FROM entry_table AS E
-		      WHERE E.PROJECT_ID = {[projectId]}
-			AND E.TASK_ID = {[taskId]}
-			AND E.DATE = {[date]});
-
-    if count = 0 then
-	dml (INSERT INTO entry_table (PROJECT_ID, TASK_ID, DATE, TIME)
-	     VALUES ({[projectId]}, {[taskId]}, {[date]}, {[readError time]}))
-    else
-	dml (UPDATE entry_table
-	     SET
-	       TIME = {[readError time]}
-	     WHERE PROJECT_ID = {[projectId]}
-	       AND TASK_ID = {[taskId]}
-	       AND DATE = {[date]})
 
 fun main () =
     timeSheetView 1 None None
