@@ -138,7 +138,8 @@ fun timeSheetModel userId count start =
 											          case entryCell of
 												      (date, time) =>
 												      timeSource <- source (show time);
-												      return (date, timeSource))
+												      id <- fresh;												      
+												      return (id, date, timeSource))
 											      entryCells;
 								      isTaskRowVisibleSource <- source isTaskRowVisible;
 								      return (taskId, taskName, isTaskRowVisibleSource, entryCells))
@@ -188,6 +189,8 @@ style table_bordered
 style table_condensed
 style table_responsive
 style table_stripped
+
+ffi blur: Basis.id -> transaction {}
 
 fun pushPinButton isVisibleSource isActiveSource clickHandler =
     <xml>
@@ -246,15 +249,16 @@ fun timeSheetView userId count start =
 										 (taskId, taskName, isTaskRowVisibleSource, entryCells) =>
 										 entryCells <- List.mapXM (fn entry =>
 													      case entry of
-														  (date, timeSource) =>
+														  (id, date, timeSource) =>
 														  return
 <xml>
   <td>
-    <ctextbox source={timeSource} onkeyup={fn event => if event.KeyCode = 13 then
-							   time <- get timeSource;
-							   rpc (saveEntryCell projectId taskId date time)
-						       else
-							   return ()}/>
+    <ctextbox id={id} source={timeSource} onkeyup={fn event => if event.KeyCode = 13 then
+								   time <- get timeSource;
+								   rpc (saveEntryCell projectId taskId date time);
+								   blur id
+							       else
+								   return ()}/>
   </td>
 </xml>)
 													  entryCells;
