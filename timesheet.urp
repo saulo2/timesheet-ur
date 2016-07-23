@@ -8,6 +8,7 @@ file /Timesheet/timesheet.css timesheet.css
 lessSafeFfi
 script timesheet.js
 file /Timesheet/timesheet.js timesheet.js
+safeGet Timesheet/main
 
 $/datetime
 $/list

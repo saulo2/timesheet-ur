@@ -58,14 +58,11 @@ fun timeSheet userId count startTime =
 					 WHERE P.USER_ID = {[userId]}
 					 ORDER BY T.NAME DESC)
 					(fn r projectIdTaskRowPairs =>
-					    let val entryCells = List.mp (fn date =>
-									     case List.find (fn entry =>												
-												entry.PROJECT_ID = r.PROJECT_ID &&
-												entry.TASK_ID = r.ID &&
-												entry.DATE = date)
-											    entries of
-										 None => (date, None)
-									       | Some entry => (date, Some entry.TIME))
+					    let val entryCells = List.mp (fn date => case List.find (fn entry => entry.PROJECT_ID = r.PROJECT_ID &&
+														 entry.TASK_ID = r.ID &&
+														 entry.DATE = date) entries of
+											 None => (date, None)
+										       | Some entry => (date, Some entry.TIME))
 									 dates
 						val taskRow = (r.ID, r.NAME, r.VISIBLE, entryCells)
 						val projectIdTaskRowPair = (r.PROJECT_ID, taskRow)
@@ -190,7 +187,8 @@ style table_condensed
 style table_responsive
 style table_stripped
 
-ffi blur: Basis.id -> transaction {}
+ffi setUp: unit -> transaction {} 
+ffi blur: id -> transaction {}
 
 fun pushPinButton isVisibleSource isActiveSource clickHandler =
     <xml>
@@ -218,6 +216,7 @@ fun timeSheetView userId count start =
   <head>
     <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"/>
     <link rel="stylesheet" type="text/css" href="/Timesheet/timesheet.css"/>
+    <script code={setUp ()}/>
   </head>
   <body onload={count <- return (case count of
 				     None => 7
