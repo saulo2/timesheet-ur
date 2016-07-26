@@ -127,22 +127,16 @@ fun timeSheetModel userId count start =
     case timeSheet of
 	(dates, projectRows) =>
 	isPinningSource <- source False;
-	projectRows <- List.mapM (fn projectRow =>
-				     case projectRow of
-					 (projectId, projectName, isProjectRowVisible, taskRows) =>
-					 taskRows <- List.mapM (fn taskRow =>
-								  case taskRow of
-								      (taskId, taskName, isTaskRowVisible, entryCells) =>
-								      entryCells <- List.mapM (fn entryCell =>
-											          case entryCell of
-												      (date, time) =>
-												      id <- fresh;
-												      timeSource <- source (show time);
-												      return (id, date, timeSource))
-											      entryCells;
-								      isTaskRowVisibleSource <- source isTaskRowVisible;
-								      return (taskId, taskName, isTaskRowVisibleSource, entryCells))
-							      taskRows;
+	projectRows <- List.mapM (fn (projectId, projectName, isProjectRowVisible, taskRows) =>
+					 taskRows <- List.mapM (fn (taskId, taskName, isTaskRowVisible, entryCells) =>
+								   entryCells <- List.mapM (fn (date, time) =>
+											       id <- fresh;											       
+											       timeSource <- source (show time);											       
+											       return (id, date, timeSource))
+											   entryCells;
+								   isTaskRowVisibleSource <- source isTaskRowVisible;
+								   return (taskId, taskName, isTaskRowVisibleSource, entryCells))
+							       taskRows;
 					 isProjectRowVisibleSource <- source isProjectRowVisible;
 					 return (projectId, projectName, isProjectRowVisibleSource, taskRows))
 				 projectRows;
@@ -289,26 +283,18 @@ fun timeSheetView userId count start =
 		       case timeSheet of
 			   None => return <xml></xml>
 			 | Some (dates, isPinningSource, projectRows) =>
-			   projectRows <- List.mapXM (fn projectRow =>
-							 case projectRow of
-							     (projectId, projectName, isProjectRowVisibleSource, taskRows) =>
-							     taskRows <- List.filterM (fn taskRow =>
-											  case taskRow of
-											      (taskId, taskName, isTaskRowVisibleSource, entryCells) =>
-											      isPinning <- signal isPinningSource;
-											      isTaskRowVisible <- signal isTaskRowVisibleSource;
-											      return (isPinning || isTaskRowVisible))
-										      taskRows;
-							     List.mapXiM (fn index taskRow =>
-									     case taskRow of
-										 (taskId, taskName, isTaskRowVisibleSource, entryCells) =>
-										 entryCells <- List.mapXM (fn entry =>
-													      case entry of
-														  (id, date, timeSource) =>
-														  return (entryCellView id timeSource projectId taskId date))
-													  entryCells;
-										 return (projectRowView isPinningSource projectId projectName isProjectRowVisibleSource taskRows index taskId taskName isTaskRowVisibleSource entryCells))
-									 taskRows)
+			   projectRows <- List.mapXM (fn (projectId, projectName, isProjectRowVisibleSource, taskRows) =>
+							 taskRows <- List.filterM (fn (taskId, taskName, isTaskRowVisibleSource, entryCells) =>
+										      isPinning <- signal isPinningSource;
+										      isTaskRowVisible <- signal isTaskRowVisibleSource;
+										      return (isPinning || isTaskRowVisible))
+										  taskRows;
+							 List.mapXiM (fn index (taskId, taskName, isTaskRowVisibleSource, entryCells) =>
+									 entryCells <- List.mapXM (fn (id, date, timeSource) =>
+												      return (entryCellView id timeSource projectId taskId date))
+												  entryCells;
+									 return (projectRowView isPinningSource projectId projectName isProjectRowVisibleSource taskRows index taskId taskName isTaskRowVisibleSource entryCells))
+								     taskRows)
 						     projectRows;
 			   return
 <xml>
