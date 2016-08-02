@@ -15,22 +15,31 @@ table entry_table: {PROJECT_ID: int, TASK_ID: int, DATE: time, TIME: float} PRIM
       CONSTRAINT PROJECT_ID FOREIGN KEY PROJECT_ID REFERENCES project_table (ID),
       CONSTRAINT TASK_ID FOREIGN KEY TASK_ID REFERENCES task_table (ID)
 
-fun intRange i j = if i = j
-		   then []
-		   else i :: (intRange (i + 1) j)
+fun midnight (time: time): time =
+    let val t = Datetime.fromTime time in
+	Datetime.toTime {Year = t.Year, Month = t.Month, Day = t.Day, Hour = 0, Minute = 0, Second = 0}
+    end
 
-fun addDays days time = Datetime.toTime (Datetime.addDays days (Datetime.fromTime time))
+fun addDays (time: time) (days: int): time =
+    Datetime.toTime (Datetime.addDays days (Datetime.fromTime time))
 
-fun timeRange count start = List.mp (fn days => addDays days start) (intRange 0 count)
+fun intRange (i: int) (j: int): list int =
+    if i >= j
+    then []
+    else i :: (intRange (i + 1) j)
 
-fun midnight time = let val t = Datetime.fromTime time in
-			Datetime.toTime {Year = t.Year, Month = t.Month, Day = t.Day, Hour = 0, Minute = 0, Second = 0}
-		    end
+fun timeRange (start: time) (count: int): list time =
+    List.mp (fn days => addDays start days) (intRange 0 count)
 
-fun timeSheet userId count startTime =
+type entryCell = time * (option float)
+type taskRow = int * string * bool * (list entryCell)
+type projectRow = int * string * bool * (list taskRow)
+type timeSheet = (list time) * (list projectRow)
+
+fun timeSheet (userId: int) (startTime: time) (count: int): transaction timeSheet =
     let val startTime = midnight startTime
-	val endTime = addDays (count + 1) startTime
-	val dates = timeRange count startTime
+	val endTime = addDays startTime (count + 1)
+	val dates = timeRange startTime count
     in
 	entries <- query (SELECT
 			    E.PROJECT_ID AS PROJECT_ID,
@@ -90,8 +99,8 @@ fun timeSheet userId count startTime =
 	return (dates, projectRows)
     end
 
-fun saveEntryCell projectId taskId date time =
-    count <- oneRowE1(SELECT COUNT( * )			
+fun saveEntryCell (projectId: int) (taskId: int) (date: time) (time: string) =
+    count <- oneRowE1(SELECT COUNT( * )
 		      FROM entry_table AS E
 		      WHERE E.PROJECT_ID = {[projectId]}
 			AND E.TASK_ID = {[taskId]}
@@ -105,14 +114,14 @@ fun saveEntryCell projectId taskId date time =
 	     SET TIME = {[readError time]}
 	     WHERE PROJECT_ID = {[projectId]}
 	       AND TASK_ID = {[taskId]}
-	       AND DATE = {[date]})    
+	       AND DATE = {[date]})
 
-fun saveProjectVisibility id visible =
+fun saveProjectVisibility (id: int) (visible: bool): transaction unit =
     dml (UPDATE project_table
 	 SET VISIBLE = {[visible]}
 	 WHERE ID = {[id]})
 
-fun saveTaskVisibility projectId taskId visible =
+fun saveTaskVisibility (projectId: int) (taskId: int) (visible: bool): transaction unit =
     dml (UPDATE project_task_table
 	 SET VISIBLE = {[visible]}
 	 WHERE PROJECT_ID = {[projectId]}
@@ -121,52 +130,109 @@ fun saveTaskVisibility projectId taskId visible =
 
 
 (* Model *)
-fun timeSheetModel userId count start =
-    timeSheet <- timeSheet userId count start;
+ffi blur: id -> transaction unit
 
-    case timeSheet of
-	(dates, projectRows) =>
-	isPinningSource <- source False;
-	projectRows <- List.mapM (fn (projectId, projectName, isProjectRowVisible, taskRows) =>
-				     taskRows <- List.mapM (fn (taskId, taskName, isTaskRowVisible, entryCells) =>
-							       entryCells <- List.mapM (fn (date, time) =>
-											   id <- fresh;
-											   timeSource <- source (show time);
-											   return (id, date, timeSource))
-										       entryCells;
-							       isTaskRowVisibleSource <- source isTaskRowVisible;
-							       return (taskId, taskName, isTaskRowVisibleSource, entryCells))
-							   taskRows;
-				     isProjectRowVisibleSource <- source isProjectRowVisible;
-				     return (projectId, projectName, isProjectRowVisibleSource, taskRows))
-				 projectRows;
-	return (dates, isPinningSource, projectRows)
+type entryCellModel = id *
+		      (source string) *
+		      (keyEvent -> transaction unit)
+
+fun entryCellModel (projectId: int) (taskId: int) ((date, time): entryCell): transaction entryCellModel =
+    id <- fresh;    
+    timeSource <- source (show time);    
+    let fun onkeyup event = if event.KeyCode = 13 then
+				time <- get timeSource;
+				rpc (saveEntryCell projectId taskId date time);
+				blur id
+			    else
+				return ()
+    in
+	return (id, timeSource, onkeyup)
+    end
+
+type taskRowModel = int *
+		    string *
+		    source bool *
+		    (list entryCellModel) *
+		    (_ -> transaction unit)
+
+fun taskRowModel (projectId: int) ((taskId, name, isVisible, entryCells): taskRow): transaction taskRowModel =
+    isVisibleSource <- source isVisible;
+    entryCells <- List.mapM (fn entryCell => entryCellModel projectId taskId entryCell) entryCells;
+    let fun toggleVisibility _ =
+	    isVisible <- get isVisibleSource;
+	    set isVisibleSource (not isVisible)
+    in
+	return (taskId, name, isVisibleSource, entryCells, toggleVisibility)
+    end
+
+type projectRowModel = int *
+		       string *
+		       (source bool) *
+		       (list taskRowModel) *
+		       (_ -> transaction unit)
+
+fun projectRowModel ((projectId, projectName, isProjectRowVisible, taskRows): projectRow): transaction projectRowModel =
+    isProjectRowVisibleSource <- source isProjectRowVisible;    
+    taskRows <- List.mapM (fn taskRow => taskRowModel projectId taskRow) taskRows;
+    let fun toggleProjectRowVisibility _ =
+	    isProjectRowVisible <- get isProjectRowVisibleSource;
+	    set isProjectRowVisibleSource (not isProjectRowVisible)
+    in
+	return (projectId, projectName, isProjectRowVisibleSource, taskRows, toggleProjectRowVisibility)
+    end
+
+type timeSheetModel = (source (option (int *
+				       (list time) *
+				       (list projectRowModel) * 
+				       (source bool) *
+				       (source bool) *
+				       bool *
+				       (_ -> transaction unit) *
+				       (_ -> transaction unit) *
+				       (_ -> transaction unit) *
+				       (_ -> transaction unit) *
+				       (_ -> transaction unit)))) *
+		      (time -> int -> transaction unit)
+
+fun timeSheetModelOptionSource (userId: int): transaction timeSheetModel =
+    timeSheetModelOptionSource <- source None;
+    let fun load start count =
+	    let fun previous _ = load (addDays start (0 - count)) count
+		fun next _ = load (addDays start count) count
+		fun minus _ = load start (count - 1)
+		fun plus _ = load start (count + 1)
+		val isMinusVisible = count > 1
+	    in
+		trueSource <- source True;
+		isPinningSource <- source False;
+		let fun togglePinning _ =
+			isPinning <- get isPinningSource;
+			set isPinningSource (not isPinning)
+		in
+		    timeSheet <- rpc (timeSheet userId start count);
+		    case timeSheet of
+			(dates, projectRows) =>
+			projectRows <- List.mapM projectRowModel projectRows;
+			set timeSheetModelOptionSource (Some (count, dates, projectRows, trueSource, isPinningSource, isMinusVisible, togglePinning, previous, next, minus, plus))
+		end
+	    end
+    in
+	return (timeSheetModelOptionSource, load)
+    end
 
 
 
 (* View *)
 style container
 style row
-
-style col_sm_1
-style col_sm_2
-style col_sm_3
-style col_sm_4
-style col_sm_5
-style col_sm_6
-style col_sm_7
-style col_sm_8
-style col_sm_9
-style col_sm_10
-style col_sm_11
 style col_sm_12
 
-style active
-      
 style btn
 style btn_default      
 style btn_primary
-style btn_sm
+style btn_sm      
+
+style pull_right
 
 style glyphicon
 style glyphicon_chevron_left
@@ -175,245 +241,131 @@ style glyphicon_minus_sign
 style glyphicon_plus_sign
 style glyphicon_pushpin
 
-style pull_right
-
 style css_table
 style table_bordered
 style table_condensed
 style table_responsive
 style table_stripped
 
-ffi setUp: unit -> transaction {} 
-ffi blur: id -> transaction {}
+fun pushPinButtonView isVisibleSource isActiveSource onclick =
+    isVisible <- signal isVisibleSource;
+    if isVisible then
+	let val dynClass =
+		isActive <- signal isActiveSource;
+		return (classes (CLASS "btn btn_sm pull_right")
+				(if isActive then btn_primary else btn_default))
+	in
+	    return
+		<xml>
+		  <button dynClass={dynClass} onclick={onclick}>
+		    <i class="glyphicon glyphicon_pushpin"></i>
+		  </button>
+		</xml>
+	end
+    else
+	return <xml></xml>
 
-fun pushPinButtonView isVisibleSource isActiveSource clickHandler =
-    let val signal =
-	    isVisible <- signal isVisibleSource;
-	    return (if isVisible then
-			let val dynClass = isActive <- signal isActiveSource;
-				return (classes (CLASS "btn btn_sm pull_right")
-						(if isActive then btn_primary else btn_default))
-			in
-			    <xml>
-			      <button dynClass={dynClass} onclick={clickHandler}>
-				<i class="glyphicon glyphicon_pushpin"></i>
-			      </button>
-			    </xml>
-			end
-		    else
-			<xml></xml>)
-    in
-	<xml>
-	  <dyn signal={signal}/>
-	</xml>
-    end
+fun projectRowView isPinningSource (projectId, projectName, isProjectRowVisibleSource, taskRows, toggleProjectRowVisibility) =
+    isPinning <- signal isPinningSource;
+    isProjectRowVisible <- signal isProjectRowVisibleSource;
+    taskRows <- (if isPinning then
+		     return taskRows
+		 else
+		     List.filterM (fn taskRow =>
+				      case taskRow of
+					  (_, _, isTaskRowVisibleSource, _, _) => signal isTaskRowVisibleSource)
+				  taskRows);
+    if isPinning || isProjectRowVisible then
+	return (List.mapXi (fn index (taskId, taskName, isTaskRowVisibleSource, entryCells, toggleTaskRowVisibility) =>
+			       <xml>
+				 <tr>
+				   {if index = 0 then
+					<xml>
+					  <th rowspan={List.length taskRows}>
+					    {[projectName]}
 
-fun entryCellView id timeSource projectId taskId date =
-    let fun onkeyup event = if event.KeyCode = 13 then
-				time <- get timeSource;
-				rpc (saveEntryCell projectId taskId date time);
-				blur id
-			    else
-				return ()
-    in
-	<xml>
-	  <td>
-	    <ctextbox id={id} source={timeSource} onkeyup={onkeyup}/>
-	  </td>
-	</xml>
-    end
+					    <dyn signal={pushPinButtonView isPinningSource isProjectRowVisibleSource toggleProjectRowVisibility}/>
+					  </th>
+					</xml>
+				    else
+					<xml></xml>}
 
-fun projectRowView isPinningSource projectId projectName isProjectRowVisibleSource taskRows index taskId taskName isTaskRowVisibleSource entryCells =
-    let val signal =
-	    isPinning <- signal isPinningSource;
-            isProjectRowVisible <- signal isProjectRowVisibleSource;
-	    return (if isPinning || isProjectRowVisible then
-			let val projectCellView = if index = 0 then
-						      <xml>
-							<td rowspan={List.length taskRows}>
-							  {[projectName]}
-							  {pushPinButtonView isPinningSource
-									     isProjectRowVisibleSource
-									     (fn _ =>
-										 isProjectRowVisible <- get isProjectRowVisibleSource;
-										 let val isProjectRowVisible = not isProjectRowVisible in
-										     rpc (saveProjectVisibility projectId isProjectRowVisible);
-										     set isProjectRowVisibleSource isProjectRowVisible
-										 end)}
-							</td>
-						      </xml>
-						  else
-						      <xml></xml>
-			in
-			    <xml>
-			      <tr>
-				{projectCellView}
-				<td>
-				  {[taskName]}
-				  {pushPinButtonView isPinningSource
-						     isTaskRowVisibleSource
-						     (fn _ =>
-							 isTaskRowVisible <- get isTaskRowVisibleSource;
-							 let val isTaskRowVisible = not isTaskRowVisible in
-							     rpc (saveTaskVisibility projectId taskId isTaskRowVisible);
-							     set isTaskRowVisibleSource isTaskRowVisible
-							 end)}
-				</td>
-				{entryCells}
-			      </tr>
-			    </xml>
-			end
-		    else
-			<xml></xml>)
-    in
-	<xml>
-	  <dyn signal={signal}/>
-	</xml>
-    end
+				   <th>
+				     {[taskName]}
 
-fun visibleProjectRowViews isPinningSource projectRows =
-    List.mapXM (fn (projectId, projectName, isProjectRowVisibleSource, taskRows) =>
-		   taskRows <- List.filterM (fn (taskId, taskName, isTaskRowVisibleSource, entryCells) =>
-						isPinning <- signal isPinningSource;
-						isTaskRowVisible <- signal isTaskRowVisibleSource;
-						return (isPinning || isTaskRowVisible))
-					    taskRows;
-		   List.mapXiM (fn index (taskId, taskName, isTaskRowVisibleSource, entryCells) =>
-				   entryCells <- List.mapXM (fn (id, date, timeSource) =>
-								return (entryCellView id timeSource projectId taskId date))
-							    entryCells;
-				   return (projectRowView isPinningSource
-							  projectId projectName
-							  isProjectRowVisibleSource
-							  taskRows
-							  index
-							  taskId
-							  taskName
-							  isTaskRowVisibleSource
-							  entryCells))
-			       taskRows)
-	       projectRows
+				     <dyn signal={pushPinButtonView isPinningSource isTaskRowVisibleSource toggleTaskRowVisibility}/>
+				   </th>
 
-fun timeSheetView userId count start =    
-    timeSheetSource <- source None;
+				   {List.mapX (fn (id, timeSource, onkeyup) => <xml><td><ctextbox id={id} source={timeSource} onkeyup={onkeyup}/></td></xml>) entryCells}
+				 </tr>
+			       </xml>) taskRows)
+    else
+	return <xml></xml>
 
-    trueSource <- source True;
+fun timeSheetView timeSheetModelOptionSource =
+    timeSheetModelOption <- signal timeSheetModelOptionSource;
 
-    let val signal =
-	    timeSheet <- signal timeSheetSource;
-	    case timeSheet of
-		None => return <xml></xml>
-	      | Some (dates, isPinningSource, projectRows) =>
-		projectRows <- visibleProjectRowViews isPinningSource projectRows;
-
-		let fun left _ = let val count = List.length dates in
-				     case dates of
-					 start :: _ => timeSheet <- rpc (timeSheetModel userId
-											count
-											(addDays (0 - count) start)); set timeSheetSource (Some timeSheet)
-				       | _ => return ()
-				 end
-				 
-		    fun right _ = let val count = List.length dates in
-				      case dates of
-					  start :: _ => timeSheet <- rpc (timeSheetModel userId
-											 count
-											 (addDays count start)); set timeSheetSource (Some timeSheet)
-					| _ => return ()
-				  end
-		in
-		    return
-			<xml>
-			  <table class="css_table table_bordered table_condensed table_responsive table_stripped">
-			    <thead>
-			      <tr>
-				<th colspan=2>
-				  {pushPinButtonView trueSource
-						     isPinningSource
-						     (fn _ =>
-							 isPinning <- get isPinningSource;
-							 set isPinningSource (not isPinning))}
-				</th>
-				<th colspan={List.length dates}>
-				  <a class="glyphicon glyphicon_chevron_left" onclick={left}/>
-
-				  Date
-
-				  <a class="glyphicon glyphicon_chevron_right" onclick={right}/>
-				  
-				  <span class="pull_right">
-				    {let val count = List.length dates in
-					 if count > 1 then
-					     <xml>
-					       <a class="glyphicon glyphicon_minus_sign" onclick=
-					       {fn _ =>
-						   case dates of
-						       start :: _ :: _ => timeSheet <- rpc (timeSheetModel userId
-													   (count - 1)
-													   start); set timeSheetSource (Some timeSheet)
-						     | _ => return ()}/>			   
-					       </xml>
-					 else
-					     <xml></xml>
-				     end}
-				      
-				      <a class="glyphicon glyphicon_plus_sign" onclick=
-				      {fn _ =>
-					  let val count = List.length dates in
-					      case dates of
-						  start :: _ => timeSheet <- rpc (timeSheetModel userId
-												 (count + 1)
-												 start); set timeSheetSource (Some timeSheet)
-						| _ => return ()
-						       
-					  end}/>
-				      </span>
-					     </th>
-				  </tr>
-				  <tr>
-				    <th>Project</th>
-				    <th>Task</th>
-				    {List.mapX (fn date =>
-						   <xml>
-						     <th>
-						       {[timef "%D" date]}
-						     </th>
-						   </xml>)
-					       dates}
-				  </tr>
-				</thead>
-				<tbody>	      
-				  {projectRows}
-				</tbody>
-			      </table>
-			    </xml>
-		end
-    in
+    case timeSheetModelOption of
+	Some (count, dates, projectRows, trueSource, isPinningSource, isMinusVisible, togglePinning, previous, next, minus, plus) =>
 	return
+	    <xml>
+	      <table class="css_table table_bordered table_condensed table_responsive table_stripped">
+		<thead>
+		  <tr>
+		    <th colspan=2>
+		      <dyn signal={pushPinButtonView trueSource isPinningSource togglePinning}/>
+		    </th>
+		    <th colspan={count}>
+		      <a class="glyphicon glyphicon_chevron_left" onclick={previous}/>
+
+		      Date
+
+		      <a class="glyphicon glyphicon_chevron_right" onclick={next}/>
+
+		      <span class="pull_right">
+			{if isMinusVisible
+			 then <xml><a class="glyphicon glyphicon_minus_sign" onclick={minus}/></xml>
+			 else <xml></xml>}
+
+			<a class="glyphicon glyphicon_plus_sign" onclick={plus}/>
+		      </span>
+		    </th>
+		  </tr>
+		</thead>
+		<tbody>
+		  <tr>
+		    <th>Project</th>
+		    <th>Task</th>
+		    {List.mapX (fn date => <xml><th>{[timef "%D" date]}</th></xml>) dates}
+		  </tr>
+		  {List.mapX (fn projectRow => <xml><dyn signal={projectRowView isPinningSource projectRow}/></xml>) projectRows}
+		</tbody>
+	      </table>
+	    </xml>
+      | None =>
+	return <xml></xml>
+
+
+
+(* Application *)
+fun main () =
+    timeSheetModelOptionSource <- timeSheetModelOptionSource 1;
+
+    case timeSheetModelOptionSource of
+	(timeSheetModelOptionSource, load) =>
+	return 
 	    <xml>
 	      <head>
 		<link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"/>
 		<link rel="stylesheet" type="text/css" href="/Timesheet/timesheet.css"/>
-		<script code={setUp ()}/>
 	      </head>
-	      <body onload={count <- return (case count of
-						 None => 7
-					       | Some count => count);
-			    start <- (case start of
-					  None => now
-					| Some start => return start);		
-			    timeSheet <- rpc (timeSheetModel userId count start);
-			    set timeSheetSource (Some timeSheet)}>
+	      <body onload={start <- now; load start 7}>
 		<div class="container">
 		  <div class="row">
 		    <div class="col-sm-12">
-		      <dyn signal={signal}/>
+		      <dyn signal={timeSheetView timeSheetModelOptionSource}/>
 		    </div>
 		  </div>
 		</div>
-              </body>
-            </xml>
-    end
-
-fun main () =
-    timeSheetView 1 None None
+	      </body>
+	    </xml>
