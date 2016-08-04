@@ -248,22 +248,24 @@ style table_responsive
 style table_stripped
 
 fun pushPinButtonView isVisibleSource isActiveSource onclick =
-    isVisible <- signal isVisibleSource;
-    if isVisible then
-	let val dynClass =
-		isActive <- signal isActiveSource;
-		return (classes (CLASS "btn btn_sm pull_right")
-				(if isActive then btn_primary else btn_default))
-	in
-	    return
-		<xml>
-		  <button dynClass={dynClass} onclick={onclick}>
-		    <i class="glyphicon glyphicon_pushpin"></i>
-		  </button>
-		</xml>
-	end
-    else
-	return <xml></xml>
+    let val dynClass =
+	    isActive <- signal isActiveSource;
+	    return (classes (CLASS "btn btn_sm pull_right")
+			    (if isActive then btn_primary else btn_default))
+
+	val dynStyle =
+	    isVisible <- signal isVisibleSource;
+	    return (if isVisible
+		    then STYLE "display: initial"
+		    else STYLE "display: none")
+    in
+	return
+	    <xml>
+	      <button dynClass={dynClass} dynStyle={dynStyle} onclick={onclick}>
+		<i class="glyphicon glyphicon_pushpin"></i>
+	      </button>
+	    </xml>
+    end
 
 fun projectRowView isPinningSource (projectId, projectName, isProjectRowVisibleSource, taskRows, toggleProjectRowVisibility) =
     isPinning <- signal isPinningSource;
