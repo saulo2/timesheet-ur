@@ -5,26 +5,8 @@ type timeSheet = (list projectRow)
 fun timeSheet (): transaction timeSheet =
     let val p1 = ("Project 1", True)
 	val p2 = ("Project 2", True)
-	val p3 = ("Project 3", True)
-	val p4 = ("Project 4", True)
-	val p5 = ("Project 5", True)
-	val p6 = ("Project 6", True)
-	val p7 = ("Project 7", True)
-	val p8 = ("Project 8", True)
-	val p9 = ("Project 9", True)
-	val p10 = ("Project 10", True)
     in
-	return (
-	Cons(p1,
-	     Cons(p2,
-		  Cons(p3,
-		       Cons(p4,
-			    Cons(p5,
-				 Cons(p6,
-				      Cons(p7,
-					   Cons(p8,
-						Cons(p9,
-						     Cons(p10, Nil)))))))))))
+	return (Cons(p1, Cons(p2, Nil)))
     end
 
 
@@ -71,21 +53,35 @@ fun timeSheetModelOptionSource (): transaction timeSheetModel =
 
 
 (* View *)
+style btn
+style btn_sm
+style btn_default
+style btn_primary
+
+style pull_right
+      
+style glyphicon
+style glyphicon_pushpin
+    
 fun pushPinButtonView isVisibleSource isActiveSource onclick =
     isVisible <- signal isVisibleSource;
-    isActive <- signal isActiveSource;
     if isVisible then
-	return
-	    <xml>
-	      <button onclick={onclick}>
-		{if isActive
-		 then cdata "Pressed"
-		 else cdata "Released"}
-	      </button>
-	    </xml>
+	let val dynClass =
+		isActive <- signal isActiveSource;
+		return (classes (CLASS "btn btn_sm pull_right")
+				(if isActive then btn_primary else btn_default))
+	in
+	    return
+		<xml>
+		  <button dynClass={dynClass} onclick={onclick}>
+		    <i class="glyphicon glyphicon_pushpin"></i>
+		    &nbsp;
+		  </button>
+		</xml>
+	end
     else
 	return <xml></xml>
-
+	
 fun projectRowView isPinningSource (projectName, isProjectRowVisibleSource, toggleProjectRowVisibility) =
     isPinning <- signal isPinningSource;
     isProjectRowVisible <- signal isProjectRowVisibleSource;
