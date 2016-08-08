@@ -19,3 +19,27 @@ input[type=text] {
 
     width: 10%;
 }
+
+.busyIndicatorMask {
+    position: fixed;
+    
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+
+    z-index: 1000;
+
+    background-color: rgba(0, 0, 0, 0.8);    
+}
+
+.busyIndicatorContainer {
+    position: fixed;
+
+    top: 50%;
+    right: 50%;   
+    bottom: 50%;
+    left: 50%;
+
+    color: #337ab7;    
+}
