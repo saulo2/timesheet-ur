@@ -2,14 +2,18 @@ database postgresql://timesheet:timesheet@localhost:5432/timesheet
 sql create.sql
 allow url https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css
 allow url https://code.jquery.com/jquery-3.1.0.js
-rewrite style Timesheet/css_*
-rewrite style Timesheet/* [-]
-file /Timesheet/timesheet.css timesheet.css
+rewrite style Bootstrap/css_*
+rewrite style Bootstrap/* [-]
+file /TimeSheet/timeSheet.css timeSheet.css
 lessSafeFfi
-script timesheet.js
-file /Timesheet/timesheet.js timesheet.js
-safeGet Timesheet/main
+script timeSheet.js
+file /TimeSheet/timeSheet.js timeSheet.js
+safeGet TimeSheet/application
 
 $/datetime
 $/list
-timesheet
+service
+model
+bootstrap
+view
+timeSheet
