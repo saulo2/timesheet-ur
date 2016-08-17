@@ -1,24 +1,21 @@
 open Bootstrap
 
 fun pushPinButtonView visibleSource activeSource onclick =
-    let val dynClass =
-	    active <- signal activeSource;
-	    return (classes (CLASS "btn btn_sm pull_right")
-			    (if active then btn_primary else btn_default))
-	    
-	val dynStyle =
-	    visible <- signal visibleSource;
-	    return (if visible
-		    then STYLE "display: initial"
-		    else STYLE "display: none")
-    in
-	return
-	    <xml>
-	      <button dynClass={dynClass} dynStyle={dynStyle} onclick={onclick}>
-		<i class="glyphicon glyphicon_pushpin"></i>
-	      </button>
-	    </xml>
-    end
+    visible <- signal visibleSource;
+    if visible then
+	let val dynStyle =
+		active <- signal activeSource;
+		return (if active
+			then STYLE "position: absolute; top: 0px; right: 0px; font-size: 12px; color: #337ab7"
+			else STYLE "position: absolute; top: 0px; right: 0px; font-size: 12px; color: #777")
+	in
+	    return
+		<xml>
+		  <i class="glyphicon glyphicon_pushpin pull_right" dynStyle={dynStyle} onclick={onclick}/>
+		</xml>
+	end
+    else
+	return <xml></xml>
 
 fun entryCellView (id, timeSource, onkeyup) =
     <xml>
@@ -30,8 +27,10 @@ fun entryCellView (id, timeSource, onkeyup) =
 fun taskRowView pinningSource (id, name, visibleSource, entryCellModels, toggleVisibility) =
     <xml>
       <th>
-	{[name]}	
-	<dyn signal={pushPinButtonView pinningSource visibleSource toggleVisibility}/>
+	<div style="position: relative">
+	  {[name]}	
+	  <dyn signal={pushPinButtonView pinningSource visibleSource toggleVisibility}/>
+	</div>
       </th>
       {List.mapX entryCellView entryCellModels}
     </xml>
@@ -51,8 +50,10 @@ fun projectRowView pinningSource (id, name, visibleSource, taskRowModels, toggle
 				{if index = 0 then
 				     <xml>
 				       <th rowspan={List.length taskRowModels}>
-					 {[name]}
-					 <dyn signal={pushPinButtonView pinningSource visibleSource toggleVisibility}/>
+					 <div style="position: relative">
+					   {[name]}
+					   <dyn signal={pushPinButtonView pinningSource visibleSource toggleVisibility}/>
+					 </div>
 				       </th>
 				     </xml>
 				 else
@@ -73,7 +74,10 @@ fun timeSheetView (s, pinningSource, pinningVisibleSource, previous, next, minus
 		<thead>
 		  <tr>
 		    <th colspan=2>
-		      <dyn signal={pushPinButtonView pinningVisibleSource pinningSource togglePinning}/>
+		      <div style="position: relative">
+			&nbsp;
+			<dyn signal={pushPinButtonView pinningVisibleSource pinningSource togglePinning}/>
+		      </div>
 		    </th>
 		    <th colspan={count}>
 		      <a class="glyphicon glyphicon_chevron_left" onclick={previous}/>		     

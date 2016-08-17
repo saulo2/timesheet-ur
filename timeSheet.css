@@ -2,6 +2,10 @@ body {
     padding-top: 50px;
 }
 
+a:hover {
+    text-decoration: none;
+}
+
 input[type=text] {
     border: none;
 

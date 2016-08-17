@@ -10,11 +10,6 @@ style table_stripped
 
 style pull_right
 
-style btn
-style btn_default      
-style btn_primary
-style btn_sm      
-
 style glyphicon
 style glyphicon_chevron_left
 style glyphicon_chevron_right

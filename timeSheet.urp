@@ -7,6 +7,7 @@ rewrite style Bootstrap/* [-]
 rewrite style TimeSheet/* [-]
 file /TimeSheet/timeSheet.css timeSheet.css
 lessSafeFfi
+script https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.2.1/Chart.min.js
 script timeSheet.js
 file /TimeSheet/timeSheet.js timeSheet.js
 safeGet TimeSheet/application
