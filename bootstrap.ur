@@ -2,6 +2,13 @@ style container
 style row
 style col_sm_12
 
+style panel
+style panel_default      
+style panel_primary
+style panel_heading
+style panel_title
+style panel_body	  
+      
 style css_table
 style table_bordered
 style table_condensed
