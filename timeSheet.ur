@@ -7,8 +7,8 @@ style fa
 style fa_spinner
 style fa_5x
 style fa_spin
-      
-style bar
+
+style chart
 
 ffi setUp: transaction unit
 ffi rpcCountSource: unit -> source int
@@ -17,6 +17,9 @@ val allColors = "#9e0142" :: "#d53e4f" :: "#f46d43" :: "#fdae61" :: "#fee08b" ::
 
 fun application () =
     s <- source None;
+
+    chartVisibleSource <- source True;
+    
     let val onload =
 	    start <- now;
 	    v <- Model.timeSheetModel 1 start 7;
@@ -49,7 +52,7 @@ fun application () =
 									   return (total + time)) 0.0 taskRowModels;
 						   return (name, time)) projectRowModels;
 
-		    let val nameTimePairs = List.filter (fn (_, time) => time > 0.0) nameTimePairs
+		    let (* val nameTimePairs = List.filter (fn (_, time) => time > 0.0) nameTimePairs *)
 
 			val total = List.foldl (fn (_, time) total => total + time) 0.0 nameTimePairs
 
@@ -69,38 +72,61 @@ fun application () =
 												 | _ => colors))
 				    
 			val nameTimeColorTuples = nameTimeColorTuples nameTimePairs allColors
-		    in				
+
+			fun toggleChartVisibility e =
+			    chartVisible <- get chartVisibleSource;
+			    set chartVisibleSource (not chartVisible)
+
+			val signal =
+			    chartVisible <- signal chartVisibleSource;
+			    if chartVisible then
+				return
+				    <xml>
+				      <div class="panel_body">
+					<table>
+					  <tbody>				
+					    {List.mapX (fn (name, time, color) =>
+							   let val color = value (property "background-color") (atom color)
+									   
+							       val height = value (property "height") (atom "100%")
+									    
+							       val width = 100.0 * time / max
+							       val width = show width
+							       val width = width ^ "%"
+							       val width = value (property "width") (atom width)
+									   
+							       val s = oneProperty (oneProperty (oneProperty noStyle color) height) width
+							   in
+							       <xml>
+								 <tr>
+								   <th>
+								     {[name]}
+								   </th>
+								   <td>
+								     <div style={s} title={(show time) ^ "h"}>
+								       {[time]}h
+								     </div>
+								   </td>
+								 </tr>
+							       </xml>
+							   end) nameTimeColorTuples}
+					  </tbody>
+					</table>
+				      </div>
+				    </xml>
+			    else
+				return <xml></xml>
+		    in
 			return
 			    <xml>
-			      <table style="width: 100%">
-				<tbody>				
-				  {List.mapX (fn (name, time, color) =>
-						 let val color = value (property "background-color") (atom color)
-
-						     val height = value (property "height") (atom "100%")
-
-						     val width = 100.0 * time / max
-						     val width = show width
-						     val width = width ^ "%"
-						     val width = value (property "width") (atom width)
-								 
-						     val s = oneProperty (oneProperty (oneProperty noStyle color) height) width
-						 in
-						     <xml>
-						       <tr>
-							 <th style="padding: 5px; text-align: right; white-space: nowrap">
-							   {[name]}
-							 </th>
-							 <td style="padding: 0px; height: 100%; width: 100%">
-							   <div style={s}>
-							     &nbsp;
-							   </div>
-							 </td>
-						       </tr>
-						     </xml>
-						 end) nameTimeColorTuples}
-				</tbody>
-			      </table>
+			      <div class="panel panel_primary chart">
+				<div class="panel_heading" onclick={toggleChartVisibility}>
+				  <h3 class="panel_title">
+				    Time per project
+				  </h3>
+				</div>
+				<dyn signal={signal}/>
+			      </div>
 			    </xml>
 		    end
 
@@ -132,14 +158,7 @@ fun application () =
 		    <div class="col-sm-12">
 		      <dyn signal={timeSheet}/>
 		      
-		      <div class="panel panel_default" style="position: fixed; right: 0px; bottom: 0px; margin-bottom: 0px; width: 50vw">
-			<div class="panel_heading">
-			  <h3 class="panel_title">Time per project</h3>
-			</div>
-			<div class="panel_body">
-			  <dyn signal={chart}/>
-			</div>
-		      </div>		      		      
+		      <dyn signal={chart}/>
 		    </div>
 		  </div>
 		</div>

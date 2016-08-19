@@ -47,3 +47,46 @@ input[type=text] {
 
     color: #337ab7;    
 }
+
+.chart {
+    position: fixed;
+
+    bottom: 0px;
+
+    margin-bottom: 0px;
+
+    left: 20%;
+
+    width: 60%;
+    
+    border-bottom-left-radius: 0px;    
+    border-bottom-right-radius: 0px;
+
+    border-bottom-width: 0px;    
+}
+
+.chart .panel-title {
+    text-align: center
+}
+
+.chart th {
+    padding: 5px;
+    
+    white-space: nowrap;
+
+    text-align: right;    
+}
+
+.chart td {
+    width: 100%;
+
+    padding: 5px;
+}
+
+.chart td div {
+    color: white;
+    
+    padding: 5px;
+
+    text-align: center;
+}
